@@ -9,10 +9,10 @@ services:
     restart: unless-stopped
     ports:
       - "80:80"
-      - "443:443"
+      - "8080:8080"
     volumes:
-      - /etc/letsencrypt/live/parf-lims-mini.data-srv.fyi:/etc/nginx/ssl/parf-lims-mini.data-srv.fyi:ro
-      - /etc/letsencrypt/archive/parf-lims-mini.data-srv.fyi:/etc/nginx/ssl/archive/parf-lims-mini.data-srv.fyi:ro
+      - /etc/letsencrypt/live/parf-lims-mini.data-srv.fyi:/etc/letsencrypt/live/parf-lims-mini.data-srv.fyi:ro
+      - /etc/letsencrypt/archive/parf-lims-mini.data-srv.fyi:/etc/letsencrypt/archive/parf-lims-mini.data-srv.fyi:ro
       - ./minilims.html:/usr/share/nginx/html/index.html:ro
     networks:
       - minilims_network
@@ -20,3 +20,4 @@ services:
 networks:
   minilims_network:
     driver: bridge
+
