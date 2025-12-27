@@ -1,0 +1,1028 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Mini Parf LIMS</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+  <style>
+    body { background:#111; color:#ddd; margin:0; padding:0; }
+    .card { background:#1c1c1c; }
+    .table input { background:#222; color:#eee; border:1px solid #444; width:100%; }
+    .table input:focus { background:#2a2a2a; color:#eee !important; border-color:#666; outline:none; }
+    .table .form-control-sm { padding: 0.15rem 0.3rem; font-size: 0.8rem; }
+    .note-header { letter-spacing:1px; text-transform:uppercase; font-size:0.85rem; }
+    .table { table-layout: fixed; width:100%; }
+    .table td, .table th { vertical-align: middle; padding:0.5rem; }
+    .table td { overflow:hidden; }
+
+    /* Ширины колонок таблицы */
+    .col-4 { width: 4% !important; }
+    .col-5 { width: 5% !important; }
+    .col-8 { width: 8% !important; }
+    .col-10 { width: 10% !important; }
+    .col-25 { width: 25% !important; }
+    .btn-delete { width:24px; height:24px; padding:0; line-height:1; font-size:18px; font-weight:bold; }
+    .btn-narrow { min-width: auto; padding: 0.2rem 0.3rem; font-size: 0.75rem; max-width: 100px; }
+    
+    .header-section { position:fixed; top:0; left:0; right:0; background:#111; z-index:1000; padding:1rem; border-bottom:1px solid #333; }
+    .scrollable-content { margin-top:250px; padding:1rem; }
+
+    #title, #totalVolume {
+      background: #2a2a2a !important;
+      color: #fff !important;
+      border: 1px solid #444;
+    }
+    #title:focus, #totalVolume:focus {
+      background: #333 !important;
+      color: #fff !important;
+      border-color: #666;
+      outline: none;
+    }
+
+    /* Анимации для рядов таблицы */
+    @keyframes fadeInRow {
+      from {
+        opacity: 0;
+        transform: translateY(-10px) scale(0.95);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+
+    @keyframes fadeOutRow {
+      from {
+        opacity: 1;
+        transform: scale(1);
+        max-height: 60px;
+      }
+      to {
+        opacity: 0;
+        transform: scale(0.95);
+        max-height: 0;
+        padding-top: 0;
+        padding-bottom: 0;
+        margin-top: 0;
+        margin-bottom: 0;
+      }
+    }
+
+    .row-fade-in {
+      animation: fadeInRow 0.4s ease-out;
+    }
+
+    .row-fade-out {
+      animation: fadeOutRow 0.3s ease-in forwards;
+      overflow: hidden;
+    }
+
+    /* Плавное появление новых карточек */
+    @keyframes slideInCard {
+      from {
+        opacity: 0;
+        transform: translateY(-20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .card-fade-in {
+      animation: slideInCard 0.5s ease-out;
+    }
+
+    /* Анимация для кнопки добавления */
+    .btn-add-click {
+      animation: buttonClick 0.2s ease-out;
+    }
+
+    @keyframes buttonClick {
+      0% { transform: scale(1); }
+      50% { transform: scale(0.95); }
+      100% { transform: scale(1); }
+    }
+
+    /* Sticky заголовок таблицы */
+    .sticky-table-header {
+      position: fixed;
+      left: 0;
+      right: 0;
+      z-index: 100;
+      background: #111;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+      padding: 1rem;
+    }
+
+    .sticky-table-header table {
+      margin-bottom: 0;
+      table-layout: fixed;
+      width: 100%;
+    }
+
+    .sticky-table-header thead th {
+      border-bottom: 2px solid #444;
+      background: #1c1c1c;
+      font-weight: 600;
+    }
+
+    /* Секционные заголовки */
+    .note-section-header {
+      background: #2a2a2a;
+      color: #ddd;
+      padding: 0.5rem 1rem;
+      margin: 0;
+      border-bottom: 1px solid #444;
+      font-size: 0.9rem;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+
+    .section-table {
+      margin-bottom: 0.5rem;
+    }
+
+    .section-table tbody tr:first-child td {
+      border-top: 2px solid #444;
+    }
+
+    /* Разделители между секциями */
+    .card + .card {
+      border-top: 1px solid #333;
+      padding-top: 0.5rem;
+    }
+    
+    .ifra-warning-input {
+      box-shadow: 0 0 10px rgba(255, 0, 0, 0.5), 0 0 20px rgba(255, 0, 0, 0.3);
+      animation: pulse-red 2s infinite;
+    }
+    @keyframes pulse-red {
+      0%, 100% { box-shadow: 0 0 10px rgba(255, 0, 0, 0.5), 0 0 20px rgba(255, 0, 0, 0.3); }
+      50% { box-shadow: 0 0 15px rgba(255, 0, 0, 0.7), 0 0 30px rgba(255, 0, 0, 0.5); }
+    }
+    .eff-conc-label {
+      font-size: 0.8rem;
+      color: #aaa;
+      white-space: nowrap;
+    }
+    .tooltip-wrapper {
+      position: relative;
+      display: inline;
+    }
+    .tooltip-wrapper .tooltip-text {
+      visibility: hidden;
+      background-color: #ff0000;
+      color: #fff;
+      text-align: center;
+      border-radius: 4px;
+      padding: 5px 8px;
+      position: absolute;
+      z-index: 1001;
+      bottom: 125%;
+      left: 50%;
+      transform: translateX(-50%);
+      white-space: nowrap;
+      font-size: 0.85rem;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    .tooltip-wrapper:hover .tooltip-text {
+      visibility: visible;
+      opacity: 1;
+    }
+  </style>
+</head>
+<body>
+
+<div class="header-section">
+  <div class="container">
+    <h3 class="mb-3">🧴 Mini Parf LIMS</h3>
+    
+    <!-- Объединенная карточка с полями и статистикой -->
+    <div class="card p-3">
+      <div class="row g-3">
+        <div class="col-md-4">
+          <label class="form-label text-light">Formula title</label>
+          <input id="title" class="form-control">
+        </div>
+        <div class="col-md-2">
+          <label class="form-label text-light">Total volume (ml)</label>
+          <input id="totalVolume" type="number" step="0.01" class="form-control" oninput="totalVolumeChanged()">
+        </div>
+        <div class="col-md-3">
+          <label class="form-label text-light">Statistics</label>
+          <div class="text-light">
+            <div><strong>Total ml:</strong> <span id="stat-ml">0</span></div>
+            <div><strong>Total concentration:</strong> <span id="stat-percent">0</span>%</div>
+          </div>
+          <div id="volume-warning" class="alert alert-warning alert-dismissible fade show mt-2 mb-0" role="alert" style="display:none; padding:0.5rem; font-size:0.85rem;">
+            <strong>Warning:</strong> Total ml ≠ Total volume. Please check your input.
+            <button type="button" class="btn-close btn-close-white" onclick="document.getElementById('volume-warning').style.display='none'" aria-label="Close"></button>
+          </div>
+        </div>
+        <div class="col-md-3 d-flex flex-column gap-2">
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" id="autoUpdate" checked onchange="autoUpdateChanged()">
+            <label class="form-check-label text-light" for="autoUpdate" style="font-size:0.9rem;">
+              Auto-update fields
+            </label>
+          </div>
+          <div class="d-flex align-items-end gap-2">
+            <button class="btn btn-danger flex-fill" onclick="exportPDF()" title="Экспорт в PDF">📄 PDF</button>
+            <button class="btn btn-success flex-fill" onclick="saveJSON()">Save</button>
+            <label class="btn btn-secondary flex-fill mb-0">
+              Load <input type="file" hidden onchange="loadJSON(event)">
+            </label>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Sticky заголовок таблицы -->
+  <div class="sticky-table-header">
+    <div class="container">
+      <table class="table table-dark table-sm align-middle">
+        <thead>
+          <tr>
+            <th class="col-4">#</th>
+            <th class="col-25">Name</th>
+            <th class="col-10">Conc %</th>
+            <th class="col-8">Eff. conc %</th>
+            <th class="col-10">IFRA Max %</th>
+            <th class="col-10">Amount %</th>
+            <th class="col-10">Amount ml</th>
+            <th class="col-5"></th>
+          </tr>
+        </thead>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="scrollable-content">
+  <div class="container">
+    <!-- TABLES -->
+    <div id="tables"></div>
+  </div>
+</div>
+
+<script>
+const NOTES = [
+  { key: 'base', label: 'Base notes' },
+  { key: 'middle', label: 'Middle notes' },
+  { key: 'top', label: 'Top notes' }
+];
+
+let rows = [];
+let focusState = null; // {id, field, cursorPos}
+
+function createRow(note) {
+  // ID будет пересчитан в render() на основе визуального порядка
+  // Временно используем временный ID для идентификации
+  const tempId = Date.now() + Math.random();
+  
+  return {
+    id: tempId,
+    note,
+    name: '',
+    concentration: '',
+    amount_percent: '',
+    amount_ml: '',
+    ifra_max: ''
+  };
+}
+
+function render() {
+  // Сохраняем состояние фокуса перед пересозданием (только для полей в таблице, не для totalVolume)
+  const activeElement = document.activeElement;
+  if (activeElement && activeElement.tagName === 'INPUT' && activeElement.id !== 'totalVolume') {
+    const inputId = activeElement.getAttribute('data-row-id');
+    const inputField = activeElement.getAttribute('data-field');
+    if (inputId && inputField) {
+      const currentValue = activeElement.value;
+      const cursorPos = activeElement.selectionStart || 0;
+      // Конвертируем ID в число для корректного сопоставления
+      const numericId = parseFloat(inputId) || inputId;
+      focusState = {
+        id: numericId,
+        field: inputField,
+        cursorPos: cursorPos,
+        previousValue: currentValue // Сохраняем предыдущее значение для корректного восстановления позиции
+      };
+    } else {
+      // Если фокус не на поле таблицы, сбрасываем состояние
+      focusState = null;
+    }
+  } else {
+    // Если фокус на totalVolume или другом элементе, не сохраняем состояние
+    focusState = null;
+  }
+
+  // Пересчитываем ID на основе визуального порядка (сверху вниз)
+  let globalRowNumber = 1;
+  const idMapping = new Map(); // Старый ID -> Новый ID
+  
+  NOTES.forEach(n => {
+    const noteRows = rows.filter(r => r.note === n.key);
+    noteRows.forEach(r => {
+      const oldId = r.id;
+      r.id = globalRowNumber++;
+      idMapping.set(oldId, r.id);
+    });
+  });
+
+  // Обновляем focusState с новым ID, если он был сохранен
+  if (focusState) {
+    const newId = idMapping.get(focusState.id);
+    if (newId !== undefined) {
+      focusState.id = newId;
+    } else {
+      // Если ID не найден в маппинге, сбрасываем focusState
+      focusState = null;
+    }
+  }
+
+  const container = document.getElementById('tables');
+  container.innerHTML = '';
+
+  NOTES.forEach(n => {
+    const noteRows = rows.filter(r => r.note === n.key);
+
+    const card = document.createElement('div');
+    card.className = 'card py-3 mb-2 text-light';
+
+    card.innerHTML = `
+      <div class="note-section-header">${n.label}</div>
+      <table class="table table-dark table-sm align-middle section-table">
+        <tbody>
+          ${noteRows.map(r => {
+            const effConc = calculateEffConc(r);
+            const ifraMax = parseFloat(r.ifra_max) || 0;
+            const hasIfraWarning = ifraMax > 0 && effConc > ifraMax;
+            const inputClass = hasIfraWarning ? 'form-control form-control-sm ifra-warning-input' : 'form-control form-control-sm';
+            const tooltipHtml = hasIfraWarning ? `<div class="tooltip-wrapper"><span class="tooltip-text">IFRA limit exceeded!</span></div>` : '';
+
+            return `
+            <tr>
+              <td class="col-4">${r.id}</td>
+              <td class="col-25"><input class="form-control form-control-sm" data-row-id="${r.id}" data-field="name" value="${r.name}" oninput="update(${r.id},'name',this.value)"></td>
+              <td class="col-10"><input class="form-control form-control-sm" type="number" step="0.01" data-row-id="${r.id}" data-field="concentration" value="${r.concentration}" oninput="concentrationChanged(${r.id},this.value)"></td>
+              <td class="col-8 text-center">${effConc.toFixed(2)}</td>
+              <td class="col-10">${tooltipHtml}<input class="${inputClass}" type="number" step="0.01" data-row-id="${r.id}" data-field="ifra_max" value="${r.ifra_max}" oninput="update(${r.id},'ifra_max',this.value); updateEffConcDisplay(${r.id})"></td>
+              <td class="col-10"><input class="form-control form-control-sm" type="number" step="0.01" data-row-id="${r.id}" data-field="amount_percent" value="${r.amount_percent}" oninput="percentChanged(${r.id},this.value)"></td>
+              <td class="col-10"><input class="form-control form-control-sm" type="number" step="0.01" data-row-id="${r.id}" data-field="amount_ml" value="${r.amount_ml}" oninput="mlChanged(${r.id},this.value)"></td>
+              <td class="col-5 text-center"><button class="btn btn-sm btn-outline-danger btn-delete" onclick="this.classList.add('btn-add-click'); setTimeout(() => this.classList.remove('btn-add-click'), 200); deleteRow(${r.id})" title="Удалить ряд">×</button></td>
+            </tr>
+          `;
+          }).join('')}
+        </tbody>
+      </table>
+      <button class="btn btn-sm btn-outline-light btn-narrow" onclick="this.classList.add('btn-add-click'); setTimeout(() => this.classList.remove('btn-add-click'), 200); addRow('${n.key}')">+ Add new row</button>
+    `;
+    container.appendChild(card);
+  });
+
+  recalcStats();
+
+  // Восстанавливаем IFRA warning для всех строк
+  rows.forEach(r => {
+    const effConc = calculateEffConc(r);
+    const ifraMax = parseFloat(r.ifra_max) || 0;
+    const hasIfraWarning = ifraMax > 0 && effConc > ifraMax;
+
+    const ifraInput = document.querySelector(`input[data-row-id="${r.id}"][data-field="ifra_max"]`);
+    const ifraCell = ifraInput?.parentElement;
+
+    if (ifraInput && ifraCell) {
+      if (hasIfraWarning) {
+        ifraInput.classList.add('ifra-warning-input');
+        // Добавляем tooltip если его нет
+        if (!ifraCell.querySelector('.tooltip-wrapper')) {
+          const tooltipWrapper = document.createElement('div');
+          tooltipWrapper.className = 'tooltip-wrapper';
+          tooltipWrapper.innerHTML = '<span class="tooltip-text">IFRA limit exceeded!</span>';
+          ifraCell.insertBefore(tooltipWrapper, ifraCell.firstChild);
+        }
+      } else {
+        ifraInput.classList.remove('ifra-warning-input');
+        // Удаляем tooltip если он есть
+        const tooltipWrapper = ifraCell.querySelector('.tooltip-wrapper');
+        if (tooltipWrapper) {
+          tooltipWrapper.remove();
+        }
+      }
+    }
+  });
+
+  // Восстанавливаем фокус после пересоздания
+  if (focusState) {
+    setTimeout(() => {
+      const input = document.querySelector(`input[data-row-id="${focusState.id}"][data-field="${focusState.field}"]`);
+      if (input) {
+        const newValue = input.value;
+        const oldValue = focusState.previousValue || '';
+        
+        // Вычисляем новую позицию курсора с учетом изменения значения
+        let newCursorPos = focusState.cursorPos;
+        if (oldValue !== newValue) {
+          // Если значение изменилось, пытаемся сохранить относительную позицию
+          const valueDiff = newValue.length - oldValue.length;
+          if (valueDiff !== 0) {
+            // Если длина изменилась, корректируем позицию
+            newCursorPos = Math.max(0, Math.min(focusState.cursorPos + valueDiff, newValue.length));
+          } else {
+            // Если длина не изменилась, сохраняем позицию
+            newCursorPos = Math.min(focusState.cursorPos, newValue.length);
+          }
+        } else {
+          // Если значение не изменилось, используем сохраненную позицию
+          newCursorPos = Math.min(focusState.cursorPos, newValue.length);
+        }
+        
+        input.focus();
+        if (input.setSelectionRange) {
+          input.setSelectionRange(newCursorPos, newCursorPos);
+        }
+      }
+      focusState = null;
+    }, 0);
+  }
+}
+
+function autoUpdateChanged() {
+  const autoUpdate = document.getElementById('autoUpdate').checked;
+  
+  // Если включаем автоматическое обновление, выполняем пересчет всех полей
+  if (autoUpdate) {
+    const tv = parseFloat(totalVolume.value);
+    
+    if (tv) {
+      // Пересчитываем ml из процентов для всех строк, где задан процент
+      rows.forEach(r => {
+        if (r.amount_percent && r.amount_percent !== '') {
+          r.amount_ml = ((tv * parseFloat(r.amount_percent)) / 100).toFixed(3);
+          const mlInput = document.querySelector(`input[data-row-id="${r.id}"][data-field="amount_ml"]`);
+          if (mlInput) {
+            mlInput.value = r.amount_ml;
+          }
+        }
+      });
+    }
+    
+    // Пересчитываем все проценты (использует общую функцию для консистентности)
+    recalcAllAmountPercent();
+    recalcStats();
+  }
+}
+
+function totalVolumeChanged() {
+  const tv = parseFloat(totalVolume.value);
+  
+  // Проверяем, включено ли автоматическое обновление
+  const autoUpdate = document.getElementById('autoUpdate').checked;
+  if (!autoUpdate) {
+    recalcStats();
+    return;
+  }
+
+  if (!tv) {
+    // Если total volume не задан, пересчитываем все проценты из суммы всех ml
+    recalcAllAmountPercent();
+    // Обновляем eff. conc% для всех строк
+    rows.forEach(row => updateEffConcDisplay(row.id));
+    recalcStats();
+    return;
+  }
+
+  // Обновляем ml для всех строк с заданным процентом
+  rows.forEach(r => {
+    if (r.amount_percent && r.amount_percent !== '') {
+      r.amount_ml = ((tv * parseFloat(r.amount_percent)) / 100).toFixed(3);
+      // Обновляем поле в DOM без полного пересоздания
+      const mlInput = document.querySelector(`input[data-row-id="${r.id}"][data-field="amount_ml"]`);
+      if (mlInput) {
+        mlInput.value = r.amount_ml;
+      }
+    }
+  });
+
+  // Пересчитываем amount_percent из amount_ml для всех строк
+  recalcAllAmountPercent();
+  // Обновляем eff. conc% для всех строк, так как totalVolume изменился
+  rows.forEach(row => updateEffConcDisplay(row.id));
+
+  recalcStats();
+  // Не вызываем render(), чтобы не терять фокус с totalVolume
+}
+
+function addRow(note) {
+  const newRow = createRow(note);
+  rows.push(newRow);
+  render();
+
+  // Добавляем анимацию появления для нового ряда
+  setTimeout(() => {
+    const newRowElement = document.querySelector(`tr:has(input[data-row-id="${newRow.id}"])`);
+    if (newRowElement) {
+      newRowElement.classList.add('row-fade-in');
+    }
+  }, 10);
+}
+
+function deleteRow(id) {
+  const index = rows.findIndex(x => x.id == id); // Используем == для сравнения
+  if (index === -1) return;
+
+  // Находим элемент ряда для анимации
+  const rowElement = document.querySelector(`tr:has(input[data-row-id="${id}"])`);
+  if (rowElement) {
+    // Добавляем анимацию исчезновения
+    rowElement.classList.add('row-fade-out');
+
+    // Ждем завершения анимации перед удалением
+    setTimeout(() => {
+      rows.splice(index, 1);
+      // Пересчитываем все проценты после удаления ряда
+      recalcAllAmountPercent();
+      recalcStats();
+      render();
+    }, 300); // 300ms - длительность анимации fadeOutRow
+  } else {
+    // Если элемент не найден, удаляем сразу
+    rows.splice(index, 1);
+    recalcAllAmountPercent();
+    recalcStats();
+    render();
+  }
+}
+
+function update(id, field, value) {
+  const r = rows.find(x => x.id == id); // Используем == для сравнения, так как ID может быть строкой или числом
+  if (r) {
+    r[field] = value;
+    recalcStats();
+  }
+}
+
+function concentrationChanged(id, value) {
+  const r = rows.find(x => x.id == id); // Используем == для сравнения
+  if (r) {
+    r.concentration = value;
+    // Обновляем eff. conc% label и IFRA warning без полного render()
+    updateEffConcDisplay(id);
+    recalcStats();
+  }
+}
+
+// Функция для обновления отображения eff. conc% для конкретного ряда
+function updateEffConcDisplay(id) {
+  const r = rows.find(x => x.id == id);
+  if (!r) return;
+
+  const effConc = calculateEffConc(r);
+
+  // Обновляем значение eff. conc% в соответствующей ячейке (4-я колонка, индекс 3)
+  const effConcCell = document.querySelector(`input[data-row-id="${id}"][data-field="concentration"]`)?.closest('tr')?.children[3];
+  if (effConcCell) {
+    effConcCell.textContent = effConc.toFixed(2);
+  }
+
+  // Обновляем IFRA warning для input поля
+  const ifraMax = parseFloat(r.ifra_max) || 0;
+  const hasIfraWarning = ifraMax > 0 && effConc > ifraMax;
+
+  const ifraInput = document.querySelector(`input[data-row-id="${id}"][data-field="ifra_max"]`);
+  const ifraCell = ifraInput?.parentElement;
+
+  if (ifraInput && ifraCell) {
+    if (hasIfraWarning) {
+      ifraInput.classList.add('ifra-warning-input');
+      // Добавляем tooltip если его нет
+      if (!ifraCell.querySelector('.tooltip-wrapper')) {
+        const tooltipWrapper = document.createElement('div');
+        tooltipWrapper.className = 'tooltip-wrapper';
+        tooltipWrapper.innerHTML = '<span class="tooltip-text">IFRA limit exceeded!</span>';
+        ifraCell.insertBefore(tooltipWrapper, ifraCell.firstChild);
+      }
+    } else {
+      ifraInput.classList.remove('ifra-warning-input');
+      // Удаляем tooltip если он есть
+      const tooltipWrapper = ifraCell.querySelector('.tooltip-wrapper');
+      if (tooltipWrapper) {
+        tooltipWrapper.remove();
+      }
+    }
+  }
+}
+
+function percentChanged(id, value) {
+  const r = rows.find(x => x.id == id); // Используем == для сравнения
+  if (!r) return;
+  
+  r.amount_percent = value;
+  
+  // Проверяем, включено ли автоматическое обновление
+  const autoUpdate = document.getElementById('autoUpdate').checked;
+  if (!autoUpdate) {
+    recalcStats();
+    return;
+  }
+  
+  const tv = parseFloat(totalVolume.value);
+  
+  if (value === '') {
+    // Если процент очищен, очищаем ml
+    r.amount_ml = '';
+    const mlInput = document.querySelector(`input[data-row-id="${id}"][data-field="amount_ml"]`);
+    if (mlInput) {
+      mlInput.value = '';
+    }
+    // Если totalVolume пуст, нужно пересчитать все проценты, так как сумма ml изменилась
+    if (!tv) {
+      recalcAllAmountPercent();
+      // Обновляем eff. conc% для всех строк
+      rows.forEach(row => updateEffConcDisplay(row.id));
+    } else {
+      // Обновляем eff. conc% только для текущего ряда
+      updateEffConcDisplay(id);
+    }
+    recalcStats();
+    return;
+  }
+  
+  if (tv) {
+    // Если total volume задан, вычисляем ml из процента и total volume
+    r.amount_ml = ((tv * parseFloat(value)) / 100).toFixed(3);
+    
+    // Обновляем поле ml
+    const mlInput = document.querySelector(`input[data-row-id="${id}"][data-field="amount_ml"]`);
+    if (mlInput) {
+      mlInput.value = r.amount_ml;
+    }
+    // Обновляем eff. conc% для текущего ряда
+    updateEffConcDisplay(id);
+  } else {
+    // Если total volume не задан, используем сумму всех ml для расчета ml из процента
+    // Сначала пересчитываем статистику, чтобы получить актуальную сумму
+    recalcStats();
+    const totalML = rows.reduce((sum, row) => {
+      return sum + (parseFloat(row.amount_ml) || 0);
+    }, 0);
+    
+    if (totalML > 0) {
+      // Вычисляем ml из процента от суммы всех ml
+      r.amount_ml = ((totalML * parseFloat(value)) / 100).toFixed(3);
+      const mlInput = document.querySelector(`input[data-row-id="${id}"][data-field="amount_ml"]`);
+      if (mlInput) {
+        mlInput.value = r.amount_ml;
+      }
+      // После изменения ml нужно пересчитать все проценты, так как сумма ml изменилась
+      recalcAllAmountPercent();
+      // Обновляем eff. conc% для всех строк
+      rows.forEach(row => updateEffConcDisplay(row.id));
+    }
+  }
+  
+  recalcStats();
+}
+
+// Функция для расчета эффективной концентрации в растворе
+function calculateEffConc(row) {
+  const conc = parseFloat(row.concentration) || 0;
+  const ml = parseFloat(row.amount_ml) || 0;
+  const tv = parseFloat(totalVolume.value);
+  
+  if (conc === 0 || ml === 0) {
+    return 0;
+  }
+  
+  // Эффективная концентрация = (concentration * amount_ml) / totalVolume * 100
+  // Если totalVolume не задан, используем сумму всех ml
+  let totalVol = tv;
+  if (!totalVol || totalVol === 0) {
+    totalVol = rows.reduce((sum, r) => {
+      return sum + (parseFloat(r.amount_ml) || 0);
+    }, 0);
+  }
+  
+  if (totalVol === 0) {
+    return 0;
+  }
+  
+  // Чистое вещество в мл = amount_ml * (concentration / 100)
+  const pureML = ml * (conc / 100);
+  // Эффективная концентрация = (чистое вещество / общий объем) * 100
+  return (pureML / totalVol) * 100;
+}
+
+// Вспомогательная функция для пересчета всех amount_percent
+function recalcAllAmountPercent() {
+  const autoUpdate = document.getElementById('autoUpdate').checked;
+  if (!autoUpdate) return;
+  
+  const tv = parseFloat(totalVolume.value);
+  
+  if (tv) {
+    // Если total volume задан, пересчитываем проценты для всех строк
+    rows.forEach(r => {
+      const ml = parseFloat(r.amount_ml) || 0;
+      if (ml > 0) {
+        r.amount_percent = ((ml / tv) * 100).toFixed(3);
+        const percentInput = document.querySelector(`input[data-row-id="${r.id}"][data-field="amount_percent"]`);
+        if (percentInput) {
+          percentInput.value = r.amount_percent;
+        }
+      } else if (ml === 0 && r.amount_ml === '') {
+        // Если ml пуст, очищаем процент
+        r.amount_percent = '';
+        const percentInput = document.querySelector(`input[data-row-id="${r.id}"][data-field="amount_percent"]`);
+        if (percentInput) {
+          percentInput.value = '';
+        }
+      }
+    });
+  } else {
+    // Если total volume не задан, используем сумму всех ml
+    const totalML = rows.reduce((sum, row) => {
+      return sum + (parseFloat(row.amount_ml) || 0);
+    }, 0);
+    
+    if (totalML > 0) {
+      // Пересчитываем проценты для ВСЕХ строк
+      rows.forEach(r => {
+        const ml = parseFloat(r.amount_ml) || 0;
+        if (ml > 0) {
+          r.amount_percent = ((ml / totalML) * 100).toFixed(3);
+          const percentInput = document.querySelector(`input[data-row-id="${r.id}"][data-field="amount_percent"]`);
+          if (percentInput) {
+            percentInput.value = r.amount_percent;
+          }
+        } else if (ml === 0 && r.amount_ml === '') {
+          // Если ml пуст, очищаем процент
+          r.amount_percent = '';
+          const percentInput = document.querySelector(`input[data-row-id="${r.id}"][data-field="amount_percent"]`);
+          if (percentInput) {
+            percentInput.value = '';
+          }
+        }
+      });
+    } else {
+      // Если сумма ml равна 0, очищаем все проценты
+      rows.forEach(r => {
+        r.amount_percent = '';
+        const percentInput = document.querySelector(`input[data-row-id="${r.id}"][data-field="amount_percent"]`);
+        if (percentInput) {
+          percentInput.value = '';
+        }
+      });
+    }
+  }
+}
+
+function mlChanged(id, value) {
+  const r = rows.find(x => x.id == id); // Используем == для сравнения
+  if (!r) return;
+  
+  r.amount_ml = value;
+
+  // Проверяем, включено ли автоматическое обновление
+  const autoUpdate = document.getElementById('autoUpdate').checked;
+  if (!autoUpdate) {
+    // Обновляем eff. conc% даже если autoUpdate выключен
+    updateEffConcDisplay(id);
+    recalcStats();
+    return;
+  }
+
+  // Пересчитываем amount_percent для ВСЕХ строк, так как изменение одного ml влияет на проценты всех строк
+  recalcAllAmountPercent();
+  // Обновляем eff. conc% для всех строк, так как изменение ml влияет на eff. conc% всех строк
+  rows.forEach(row => updateEffConcDisplay(row.id));
+  recalcStats();
+}
+
+
+function recalcStats() {
+  let totalML = 0;
+  let totalPureML = 0;
+
+  rows.forEach(r => {
+    const ml = parseFloat(r.amount_ml) || 0;
+    const conc = parseFloat(r.concentration) || 0;
+
+    totalML += ml;
+    totalPureML += ml * (conc / 100);
+  });
+
+  // НЕ автозаполняем total volume - пользователь должен задать его явно
+  // total volume - это целевой объем всего раствора, а не сумма компонентов
+  
+  const tv = parseFloat(totalVolume.value);
+  
+  // Для расчета общей концентрации используем total volume, если задан
+  // Иначе показываем концентрацию относительно суммы компонентов (но это не совсем правильно)
+  let totalConcentration = 0;
+  if (tv && tv > 0) {
+    // Правильный расчет: общая концентрация = сумма чистого вещества / total volume
+    totalConcentration = (totalPureML / tv) * 100;
+  } else if (totalML > 0) {
+    // Если total volume не задан, показываем концентрацию относительно суммы компонентов
+    // (но это временное значение, пока пользователь не задаст total volume)
+    totalConcentration = (totalPureML / totalML) * 100;
+  }
+
+  document.getElementById('stat-ml').textContent =
+    totalML.toFixed(3);
+
+  document.getElementById('stat-percent').textContent =
+    totalConcentration.toFixed(2);
+  
+  // Проверка расхождения между total_ml и total_volume
+  const warningDiv = document.getElementById('volume-warning');
+  if (tv && totalML > 0) {
+    const diff = Math.abs(totalML - tv);
+    const tolerance = 0.01; // Допустимое расхождение в 0.01 мл
+    if (diff > tolerance) {
+      warningDiv.style.display = 'block';
+    } else {
+      warningDiv.style.display = 'none';
+    }
+  } else {
+    warningDiv.style.display = 'none';
+  }
+}
+
+
+
+function exportPDF() {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  
+  // Заголовок (без эмодзи для корректного отображения в PDF)
+  const formulaTitle = title.value || 'Untitled Formula';
+  doc.setFontSize(18);
+  doc.setFont(undefined, 'bold');
+  doc.text('Mini Parf LIMS', 14, 20);
+  doc.setFontSize(14);
+  doc.setFont(undefined, 'normal');
+  doc.text(formulaTitle, 14, 30);
+  
+  let yPos = 40;
+  
+  // Общая информация
+  doc.setFontSize(12);
+  doc.setFont(undefined, 'bold');
+  doc.text('General Information', 14, yPos);
+  yPos += 8;
+  
+  doc.setFont(undefined, 'normal');
+  doc.setFontSize(10);
+  const totalML = document.getElementById('stat-ml').textContent;
+  const totalConc = document.getElementById('stat-percent').textContent;
+  const totalVol = totalVolume.value || 'not set';
+  
+  doc.text(`Total volume: ${totalVol} ml`, 20, yPos);
+  yPos += 6;
+  doc.text(`Total ml (components): ${totalML} ml`, 20, yPos);
+  yPos += 6;
+  doc.text(`Total concentration: ${totalConc}%`, 20, yPos);
+  yPos += 12;
+  
+  // Собираем все ряды с глобальной нумерацией
+  let globalRowNumber = 1;
+  
+  // Таблицы для каждой ноты
+  NOTES.forEach((note, noteIndex) => {
+    const noteRows = rows.filter(r => r.note === note.key);
+    
+    if (noteRows.length === 0) return;
+    
+    // Заголовок ноты
+    doc.setFontSize(11);
+    doc.setFont(undefined, 'bold');
+    doc.text(note.label.toUpperCase(), 14, yPos);
+    yPos += 8;
+    
+    // Подготовка данных для таблицы с глобальной нумерацией
+    const tableData = noteRows.map(r => {
+      const rowNum = globalRowNumber++;
+      return [
+        rowNum.toString(),
+        r.name || '-',
+        r.concentration ? parseFloat(r.concentration).toFixed(2) + '%' : '-',
+        r.amount_percent ? parseFloat(r.amount_percent).toFixed(2) + '%' : '-',
+        r.amount_ml ? parseFloat(r.amount_ml).toFixed(3) + ' ml' : '-'
+      ];
+    });
+    
+    // Создание таблицы
+    doc.autoTable({
+      startY: yPos,
+      head: [['#', 'Name', 'Conc %', 'Amount %', 'Amount ml']],
+      body: tableData,
+      theme: 'striped',
+      headStyles: { fillColor: [60, 60, 60], textColor: 255, fontStyle: 'bold' },
+      styles: { fontSize: 9, cellPadding: 3 },
+      columnStyles: {
+        0: { cellWidth: 15 },
+        1: { cellWidth: 80 },
+        2: { cellWidth: 30 },
+        3: { cellWidth: 30 },
+        4: { cellWidth: 35 }
+      },
+      margin: { left: 14, right: 14 }
+    });
+    
+    yPos = doc.lastAutoTable.finalY + 10;
+    
+    // Проверка на новую страницу
+    if (yPos > 270 && noteIndex < NOTES.length - 1) {
+      doc.addPage();
+      yPos = 20;
+    }
+  });
+  
+  // Футер с датой
+  const pageCount = doc.internal.getNumberOfPages();
+  const dateStr = new Date().toLocaleDateString('en-US', { 
+    year: 'numeric', 
+    month: '2-digit', 
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+  
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i);
+    doc.setFontSize(8);
+    doc.setTextColor(128);
+    doc.text(
+      `Page ${i} of ${pageCount} | Created: ${dateStr}`,
+      14,
+      doc.internal.pageSize.height - 10
+    );
+  }
+  
+  // Сохранение
+  const fileName = `${formulaTitle.replace(/[^a-z0-9]/gi, '_') || 'formula'}.pdf`;
+  doc.save(fileName);
+}
+
+function saveJSON() {
+  const data = {
+    title: title.value,
+    total_volume: totalVolume.value,
+    rows
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `${title.value || 'formula'}.json`;
+  a.click();
+}
+
+function loadJSON(e) {
+  const file = e.target.files[0];
+  const reader = new FileReader();
+  reader.onload = () => {
+    const data = JSON.parse(reader.result);
+    title.value = data.title || '';
+    totalVolume.value = data.total_volume || '';
+    rows = data.rows || [];
+    // Убеждаемся, что у всех строк есть поле ifra_max (для обратной совместимости)
+    rows.forEach(r => {
+      if (r.ifra_max === undefined) {
+        r.ifra_max = '';
+      }
+    });
+    render();
+  };
+  reader.readAsText(file);
+}
+
+// Функция для позиционирования sticky header
+function positionStickyHeader() {
+  const headerSection = document.querySelector('.header-section');
+  const stickyHeader = document.querySelector('.sticky-table-header');
+  if (headerSection && stickyHeader) {
+    const headerHeight = headerSection.offsetHeight;
+    stickyHeader.style.top = headerHeight + 'px';
+  }
+}
+
+// Вызываем позиционирование при загрузке и изменении размера окна
+window.addEventListener('load', positionStickyHeader);
+window.addEventListener('resize', positionStickyHeader);
+
+/* init */
+NOTES.forEach(n => addRow(n.key));
+</script>
+
+</body>
+</html>

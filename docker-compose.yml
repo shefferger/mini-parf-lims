@@ -1,0 +1,27 @@
+services:
+  minilims:
+    image: minilims-nginx
+    container_name: minilims
+    hostname: minilims
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      # Mount SSL certificates
+      # Create these directories and place your certificates:
+      # - ./certs/cert.pem -> /etc/nginx/ssl/cert.pem
+      # - ./certs/key.pem -> /etc/nginx/ssl/key.pem
+      - ./certs:/etc/nginx/ssl:ro
+      # Optional: mount HTML file for live updates
+      - ./minilims.html:/usr/share/nginx/html/index.html:ro
+    networks:
+      - minilims_network
+
+networks:
+  minilims_network:
+    driver: bridge
+
