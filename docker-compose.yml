@@ -11,12 +11,8 @@ services:
       - "80:80"
       - "443:443"
     volumes:
-      # Mount SSL certificates
-      # Create these directories and place your certificates:
-      # - ./certs/cert.pem -> /etc/nginx/ssl/cert.pem
-      # - ./certs/key.pem -> /etc/nginx/ssl/key.pem
-      - ./certs:/etc/nginx/ssl:ro
-      # Optional: mount HTML file for live updates
+      - /etc/letsencrypt/live/parf-lims-mini.data-srv.fyi:/etc/nginx/ssl/parf-lims-mini.data-srv.fyi:ro
+      - /etc/letsencrypt/archive/parf-lims-mini.data-srv.fyi:/etc/nginx/ssl/archive/parf-lims-mini.data-srv.fyi:ro
       - ./minilims.html:/usr/share/nginx/html/index.html:ro
     networks:
       - minilims_network
@@ -24,4 +20,3 @@ services:
 networks:
   minilims_network:
     driver: bridge
-
