@@ -18,6 +18,7 @@
     .table td { overflow:hidden; }
 
     /* Ширины колонок таблицы */
+    .col-2 { width: 2% !important; }
     .col-4 { width: 4% !important; }
     .col-5 { width: 5% !important; }
     .col-8 { width: 8% !important; }
@@ -25,9 +26,18 @@
     .col-25 { width: 25% !important; }
     .btn-delete { width:24px; height:24px; padding:0; line-height:1; font-size:18px; font-weight:bold; }
     .btn-narrow { min-width: auto; padding: 0.2rem 0.3rem; font-size: 0.75rem; max-width: 100px; }
+
+    /* Prevent PDF button from wrapping and maintain height */
+    button[onclick="exportPDF()"] {
+      white-space: nowrap;
+      min-height: 38px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
     
     .header-section { position:fixed; top:0; left:0; right:0; background:#111; z-index:1000; padding:1rem; border-bottom:1px solid #333; }
-    .scrollable-content { margin-top:250px; padding:1rem; }
+    .scrollable-content { margin-top:250px; padding:0; }
 
     #title, #totalVolume {
       background: #2a2a2a !important;
@@ -114,7 +124,7 @@
       z-index: 100;
       background: #111;
       box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-      padding: 1rem;
+      padding: 0;
     }
 
     .sticky-table-header table {
@@ -127,6 +137,7 @@
       border-bottom: 2px solid #444;
       background: #1c1c1c;
       font-weight: 600;
+      padding: 0;
     }
 
     /* Секционные заголовки */
@@ -370,7 +381,7 @@ function render() {
 
             return `
             <tr>
-              <td class="col-4">${r.id}</td>
+              <td class="col-2">${r.id}</td>
               <td class="col-25"><input class="form-control form-control-sm" data-row-id="${r.id}" data-field="name" value="${r.name}" oninput="update(${r.id},'name',this.value)"></td>
               <td class="col-10"><input class="form-control form-control-sm" type="number" step="0.01" data-row-id="${r.id}" data-field="concentration" value="${r.concentration}" oninput="concentrationChanged(${r.id},this.value)"></td>
               <td class="col-8 text-center">${effConc.toFixed(2)}</td>
@@ -863,32 +874,35 @@ function recalcStats() {
 function exportPDF() {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
-  
+
   // Заголовок (без эмодзи для корректного отображения в PDF)
   const formulaTitle = title.value || 'Untitled Formula';
   doc.setFontSize(18);
-  doc.setFont(undefined, 'bold');
+  doc.setFont('helvetica', 'bold');
   doc.text('Mini Parf LIMS', 14, 20);
   doc.setFontSize(14);
-  doc.setFont(undefined, 'normal');
+  doc.setFont('helvetica', 'normal');
   doc.text(formulaTitle, 14, 30);
   
   let yPos = 40;
   
   // Общая информация
   doc.setFontSize(12);
-  doc.setFont(undefined, 'bold');
+  doc.setFont('helvetica', 'bold');
   doc.text('General Information', 14, yPos);
   yPos += 8;
-  
-  doc.setFont(undefined, 'normal');
+
+  doc.setFont('helvetica', 'normal');
   doc.setFontSize(10);
   const totalML = document.getElementById('stat-ml').textContent;
   const totalConc = document.getElementById('stat-percent').textContent;
-  const totalVol = totalVolume.value || 'not set';
-  
-  doc.text(`Total volume: ${totalVol} ml`, 20, yPos);
-  yPos += 6;
+  const totalVol = totalVolume.value;
+
+  // Показываем Total volume только если он задан
+  if (totalVol && totalVol.trim() !== '') {
+    doc.text(`Total volume: ${totalVol} ml`, 20, yPos);
+    yPos += 6;
+  }
   doc.text(`Total ml (components): ${totalML} ml`, 20, yPos);
   yPos += 6;
   doc.text(`Total concentration: ${totalConc}%`, 20, yPos);
@@ -905,17 +919,20 @@ function exportPDF() {
     
     // Заголовок ноты
     doc.setFontSize(11);
-    doc.setFont(undefined, 'bold');
+    doc.setFont('helvetica', 'bold');
     doc.text(note.label.toUpperCase(), 14, yPos);
     yPos += 8;
     
     // Подготовка данных для таблицы с глобальной нумерацией
     const tableData = noteRows.map(r => {
       const rowNum = globalRowNumber++;
+      const effConc = calculateEffConc(r);
       return [
         rowNum.toString(),
         r.name || '-',
         r.concentration ? parseFloat(r.concentration).toFixed(2) + '%' : '-',
+        effConc.toFixed(2) + '%',
+        r.ifra_max ? parseFloat(r.ifra_max).toFixed(2) + '%' : '-',
         r.amount_percent ? parseFloat(r.amount_percent).toFixed(2) + '%' : '-',
         r.amount_ml ? parseFloat(r.amount_ml).toFixed(3) + ' ml' : '-'
       ];
@@ -924,17 +941,19 @@ function exportPDF() {
     // Создание таблицы
     doc.autoTable({
       startY: yPos,
-      head: [['#', 'Name', 'Conc %', 'Amount %', 'Amount ml']],
+      head: [['#', 'Name', 'Conc %', 'Eff. conc %', 'IFRA Max %', 'Amount %', 'Amount ml']],
       body: tableData,
       theme: 'striped',
       headStyles: { fillColor: [60, 60, 60], textColor: 255, fontStyle: 'bold' },
-      styles: { fontSize: 9, cellPadding: 3 },
+      styles: { fontSize: 8, cellPadding: 2 },
       columnStyles: {
-        0: { cellWidth: 15 },
-        1: { cellWidth: 80 },
-        2: { cellWidth: 30 },
-        3: { cellWidth: 30 },
-        4: { cellWidth: 35 }
+        0: { cellWidth: 10 },
+        1: { cellWidth: 60 },
+        2: { cellWidth: 22 },
+        3: { cellWidth: 22 },
+        4: { cellWidth: 22 },
+        5: { cellWidth: 22 },
+        6: { cellWidth: 22 }
       },
       margin: { left: 14, right: 14 }
     });
