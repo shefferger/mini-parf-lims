@@ -22,5 +22,5 @@ jobs:
       - name: Copy index.html to server
         shell: bash
         run: |
-          scp -P ${{ secrets.SSH_PORT }} index.html \
-            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ secrets.SSH_PATH }}/index.html
+          scp -P ${{ secrets.SSH_PORT }} minilims.html \
+            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ secrets.SSH_PATH }}/minilims.html
